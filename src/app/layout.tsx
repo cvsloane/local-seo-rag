@@ -14,8 +14,8 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Next.js & Pinecone",
-  description: "AI Semantic Search with Next.js and Pinecone"
+  title: "RAG AI withNext.js & Pinecone",
+  description: "Build Your Own ChatGPT-Style App with RAG: Next.js + Pinecone Edition 🚀"
 };
 
 export default function RootLayout({

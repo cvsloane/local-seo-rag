@@ -2,22 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { openai } from '@/lib/openai';
 import { index } from '@/lib/pinecone';
 import { formatMessages } from '@/lib/utils';
-import { ChatResponse, Citation } from '@/types';
+import { ChatResponse } from '@/types';
 import { z } from 'zod';
 
 const chatRequestSchema = z.object({
   messages: z.array(z.object({
     role: z.enum(['user', 'assistant', 'system']),
     content: z.string(),
-    citations: z.array(z.object({
-      text: z.string(),
-      chunkId: z.string(),
-      metadata: z.object({
-        fileName: z.string().optional(),
-        pageNumber: z.number().optional(),
-        timestamp: z.string().optional(),
-      }).optional(),
-    })).optional(),
   })),
   query: z.string(),
 });
@@ -40,22 +31,19 @@ export async function POST(req: NextRequest): Promise<NextResponse<ChatResponse>
       includeMetadata: true,
     });
 
-    // Prepare citations and context
-    const citations: Citation[] = results.matches.map((match) => ({
-      text: String(match.metadata?.text || ''),
-      chunkId: String(match.metadata?.chunkId || match.id),
-      metadata: {
-        fileName: typeof match.metadata?.fileName === 'string' ? match.metadata.fileName : undefined,
-        timestamp: typeof match.metadata?.timestamp === 'string' ? match.metadata.timestamp : undefined,
-      },
-    }));
-
-    const context = citations
-      .map((citation) => citation.text)
+    // Format context from results
+    const context = results.matches
+      .map((match) => match.metadata?.text || '')
       .join('\n');
 
-    // Format messages with context
-    const messagesWithContext = formatMessages(messages, context, citations);
+    // Add context to the last user message
+    const messagesWithContext = formatMessages([
+      ...messages.slice(0, -1),
+      {
+        role: 'user',
+        content: `Context: ${context}\n\nQuestion: ${query}`,
+      },
+    ]);
 
     // Get completion from OpenAI
     const completion = await openai.chat.completions.create({
@@ -70,7 +58,6 @@ export async function POST(req: NextRequest): Promise<NextResponse<ChatResponse>
       message: {
         role: 'assistant',
         content: completion.choices[0].message.content || '',
-        citations,
       },
     });
   } catch (error) {
