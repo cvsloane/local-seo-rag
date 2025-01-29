@@ -1,17 +1,5 @@
 import { Message, Citation } from '@/types';
 
-export const processFileContent = async (content: string, fileName: string): Promise<string[]> => {
-  // Split content into chunks of roughly 1000 characters
-  const chunkSize = 1000;
-  const chunks = [];
-  
-  for (let i = 0; i < content.length; i += chunkSize) {
-    chunks.push(content.slice(i, i + chunkSize));
-  }
-  
-  return chunks;
-};
-
 export const formatMessages = (messages: Message[], context: string, citations: Citation[]): Message[] => {
   return [
     {

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { openai } from '@/lib/openai';
 import { index } from '@/lib/pinecone';
 import { formatMessages } from '@/lib/utils';
-import { ChatResponse } from '@/types';
+import { ChatResponse, Citation } from '@/types';
 import { z } from 'zod';
 
 const chatRequestSchema = z.object({
@@ -20,7 +20,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<ChatResponse>
 
     // Get embeddings for the query
     const queryEmbedding = await openai.embeddings.create({
-      model: 'text-embedding-3-small',
+      model: process.env.OPENAI_EMBEDDING_MODEL || 'text-embedding-3-small',
       input: query,
     });
 
@@ -36,18 +36,21 @@ export async function POST(req: NextRequest): Promise<NextResponse<ChatResponse>
       .map((match) => match.metadata?.text || '')
       .join('\n');
 
-    // Add context to the last user message
-    const messagesWithContext = formatMessages([
-      ...messages.slice(0, -1),
-      {
-        role: 'user',
-        content: `Context: ${context}\n\nQuestion: ${query}`,
+    // Create citations array
+    const citations: Citation[] = results.matches.map((match) => ({
+      text: String(match.metadata?.text || ''),
+      chunkId: String(match.metadata?.chunkId || match.id),
+      metadata: {
+        fileName: typeof match.metadata?.fileName === 'string' ? match.metadata.fileName : undefined,
       },
-    ]);
+    }));
+
+    // Add context to the last user message
+    const messagesWithContext = formatMessages(messages, context, citations);
 
     // Get completion from OpenAI
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4-turbo-preview',
+      model: process.env.OPENAI_CHAT_MODEL || 'gpt-4-turbo-preview',
       messages: messagesWithContext,
       temperature: 0.7,
       max_tokens: 500,

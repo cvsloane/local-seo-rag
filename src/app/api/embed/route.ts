@@ -29,7 +29,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<ChatResponse>
 
     // Get embeddings for the query
     const queryEmbedding = await openai.embeddings.create({
-      model: 'text-embedding-3-small',
+      model: process.env.OPENAI_EMBEDDING_MODEL || 'text-embedding-3-small',
       input: query,
     });
 
@@ -59,7 +59,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<ChatResponse>
 
     // Get completion from OpenAI
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4-turbo-preview',
+      model: process.env.OPENAI_CHAT_MODEL || 'gpt-4-turbo-preview',
       messages: messagesWithContext,
       temperature: 0.7,
       max_tokens: 500,
